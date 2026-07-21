@@ -1,0 +1,6 @@
+id,name,age,salary,active
+1,Alice,30,50000.50,true
+2,Bob,25,42000.00,true
+3,Charlie,35,61000.75,false
+4,Diana,28,48000.00,true
+5,Eve,42,72000.25,false
