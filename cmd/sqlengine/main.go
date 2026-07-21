@@ -36,6 +36,9 @@ func main() {
 	for {
 		fmt.Print("sql> ")
 		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "error leyendo entrada: %v\n", err)
+			}
 			break
 		}
 
