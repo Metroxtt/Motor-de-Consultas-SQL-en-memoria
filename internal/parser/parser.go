@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Metroxtt/Motor-de-Consultas-SQL-en-memoria/internal/lexer"
 )
@@ -197,6 +198,15 @@ func (p *Parser) parsePrimary() (Node, error) {
 		return expr, nil
 
 	case lexer.TokenIdent:
+		lower := strings.ToUpper(tok.Literal)
+		if lower == "TRUE" || lower == "FALSE" {
+			p.advance()
+			return &BoolLitNode{Value: lower == "TRUE"}, nil
+		}
+		if lower == "NULL" {
+			p.advance()
+			return &NullLitNode{}, nil
+		}
 		p.advance()
 		return &ColumnRefNode{Name: tok.Literal}, nil
 
@@ -216,14 +226,6 @@ func (p *Parser) parsePrimary() (Node, error) {
 		return subQuery, nil
 
 	default:
-		if tok.Literal == "TRUE" || tok.Literal == "FALSE" {
-			p.advance()
-			return &BoolLitNode{Value: tok.Literal == "TRUE"}, nil
-		}
-		if tok.Literal == "NULL" {
-			p.advance()
-			return &NullLitNode{}, nil
-		}
 		return nil, fmt.Errorf("expresión inesperada %s en línea %d, columna %d",
 			tok.Type, tok.Line, tok.Column)
 	}
