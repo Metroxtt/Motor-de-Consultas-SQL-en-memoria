@@ -6,9 +6,9 @@ type TokenType int
 
 const (
 	// Literales
-	TokenIdent    TokenType = iota // nombre de columna/tabla
-	TokenNumber                    // 42, 3.14
-	TokenString                    // 'texto'
+	TokenIdent  TokenType = iota // nombre de columna/tabla
+	TokenNumber                  // 42, 3.14
+	TokenString                  // 'texto'
 
 	// Palabras clave
 	TokenSelect // SELECT
@@ -16,15 +16,17 @@ const (
 	TokenWhere  // WHERE
 	TokenAnd    // AND
 	TokenOr     // OR
+	TokenGroup  // GROUP
+	TokenBy     // BY
 
 	// Operadores
-	TokenEq    // =
-	TokenNeq   // <>
-	TokenLt    // <
-	TokenGt    // >
-	TokenLe    // <=
-	TokenGe    // >=
-	TokenStar  // *
+	TokenEq     // =
+	TokenNeq    // <>
+	TokenLt     // <
+	TokenGt     // >
+	TokenLe     // <=
+	TokenGe     // >=
+	TokenStar   // *
 	TokenLParen // (
 	TokenRParen // )
 	TokenComma  // ,
@@ -36,7 +38,7 @@ const (
 var tokenNames = map[TokenType]string{
 	TokenIdent: "IDENT", TokenNumber: "NUMBER", TokenString: "STRING",
 	TokenSelect: "SELECT", TokenFrom: "FROM", TokenWhere: "WHERE",
-	TokenAnd: "AND", TokenOr: "OR",
+	TokenAnd: "AND", TokenOr: "OR", TokenGroup: "GROUP", TokenBy: "BY",
 	TokenEq: "=", TokenNeq: "<>", TokenLt: "<", TokenGt: ">",
 	TokenLe: "<=", TokenGe: ">=", TokenStar: "*",
 	TokenLParen: "(", TokenRParen: ")", TokenComma: ",",

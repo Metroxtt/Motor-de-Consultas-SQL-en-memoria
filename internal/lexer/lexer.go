@@ -9,6 +9,7 @@ import (
 var keywords = map[string]TokenType{
 	"SELECT": TokenSelect, "FROM": TokenFrom,
 	"WHERE": TokenWhere, "AND": TokenAnd, "OR": TokenOr,
+	"GROUP": TokenGroup, "BY": TokenBy,
 }
 
 type Lexer struct {

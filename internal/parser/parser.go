@@ -82,6 +82,18 @@ func (p *Parser) Parse() (*SelectNode, error) {
 		node.Where = expr
 	}
 
+	if p.peek().Type == lexer.TokenGroup {
+		p.advance()
+		if _, err := p.expect(lexer.TokenBy); err != nil {
+			return nil, fmt.Errorf("se esperaba BY después de GROUP")
+		}
+		colTok, err := p.expect(lexer.TokenIdent)
+		if err != nil {
+			return nil, fmt.Errorf("se esperaba nombre de columna después de GROUP BY")
+		}
+		node.GroupBy = colTok.Literal
+	}
+
 	if p.peek().Type != lexer.TokenEOF {
 		return nil, fmt.Errorf("token inesperado %s en línea %d, columna %d",
 			p.peek().Type, p.peek().Line, p.peek().Column)
