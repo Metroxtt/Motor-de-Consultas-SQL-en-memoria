@@ -19,7 +19,34 @@ func BuildPlan(node *parser.SelectNode, cat *catalog.Catalog) (Operator, error) 
 		op = NewFilterOperator(op, node.Where)
 	}
 
+	if hasAggregates(node) {
+		aggs := collectAggregates(node.Columns)
+		op = NewAggregateOperator(op, node.GroupBy, aggs, node.Columns)
+	}
+
 	op = NewProjectOperator(op, node.Columns, table.Schema)
 
 	return op, nil
+}
+
+func hasAggregates(node *parser.SelectNode) bool {
+	if node.GroupBy != "" {
+		return true
+	}
+	for _, col := range node.Columns {
+		if _, ok := col.(*parser.AggregateNode); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func collectAggregates(columns []parser.Node) []*parser.AggregateNode {
+	var aggs []*parser.AggregateNode
+	for _, col := range columns {
+		if agg, ok := col.(*parser.AggregateNode); ok {
+			aggs = append(aggs, agg)
+		}
+	}
+	return aggs
 }
