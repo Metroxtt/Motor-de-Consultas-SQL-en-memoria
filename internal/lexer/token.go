@@ -6,9 +6,9 @@ type TokenType int
 
 const (
 	// Literales
-	TokenIdent    TokenType = iota // nombre de columna/tabla
-	TokenNumber                    // 42, 3.14
-	TokenString                    // 'texto'
+	TokenIdent  TokenType = iota // nombre de columna/tabla
+	TokenNumber                  // 42, 3.14
+	TokenString                  // 'texto'
 
 	// Palabras clave
 	TokenSelect // SELECT
@@ -17,14 +17,20 @@ const (
 	TokenAnd    // AND
 	TokenOr     // OR
 
+	TokenOrder //ORDER
+	TokenBy    //By
+	TokenLimit //LIMIT
+	TokenAsc   // ASC
+	TokenDesc  //DESC
+
 	// Operadores
-	TokenEq    // =
-	TokenNeq   // <>
-	TokenLt    // <
-	TokenGt    // >
-	TokenLe    // <=
-	TokenGe    // >=
-	TokenStar  // *
+	TokenEq     // =
+	TokenNeq    // <>
+	TokenLt     // <
+	TokenGt     // >
+	TokenLe     // <=
+	TokenGe     // >=
+	TokenStar   // *
 	TokenLParen // (
 	TokenRParen // )
 	TokenComma  // ,
@@ -41,6 +47,9 @@ var tokenNames = map[TokenType]string{
 	TokenLe: "<=", TokenGe: ">=", TokenStar: "*",
 	TokenLParen: "(", TokenRParen: ")", TokenComma: ",",
 	TokenEOF: "EOF",
+
+	TokenOrder: "ORDER", TokenBy: "BY", TokenLimit: "LIMIT",
+	TokenAsc: "ASC", TokenDesc: "DESC",
 }
 
 func (t TokenType) String() string {

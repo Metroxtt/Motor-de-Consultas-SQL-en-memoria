@@ -81,6 +81,27 @@ func (p *Parser) Parse() (*SelectNode, error) {
 		}
 		node.Where = expr
 	}
+	if p.peek().Type == lexer.TokenOrder {
+		p.advance()
+		if _, err := p.expect(lexer.TokenBy); err != nil {
+			return nil, err
+		}
+		items, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		node.OrderBy = items
+
+	}
+	if p.peek().Type == lexer.TokenLimit {
+		p.advance()
+		numTok, err := p.expect(lexer.TokenNumber)
+		if err != nil {
+			return nil, fmt.Errorf("se esperaba un numero despues del LIMIT")
+		}
+		n, _ := strconv.Atoi(numTok.Literal)
+		node.Limit = &n
+	}
 
 	if p.peek().Type != lexer.TokenEOF {
 		return nil, fmt.Errorf("token inesperado %s en línea %d, columna %d",
@@ -120,6 +141,50 @@ func (p *Parser) parseColumnList() ([]Node, error) {
 	}
 
 	return columns, nil
+}
+
+func (p *Parser) parseOrderByList() ([]OrderByItem, error) {
+	var items []OrderByItem
+
+	col, err := p.parsePrimary()
+	if err != nil {
+		return nil, err
+	}
+	ref, ok := col.(*ColumnRefNode)
+	if !ok {
+		return nil, fmt.Errorf("ORDER BY requiere de un nombre de columna")
+	}
+	asc := true
+	if p.peek().Type == lexer.TokenAsc {
+		p.advance()
+		asc = true
+	} else if p.peek().Type == lexer.TokenDesc {
+		p.advance()
+		asc = false
+	}
+	items = append(items, OrderByItem{Column: ref.Name, Asc: asc})
+
+	for p.peek().Type == lexer.TokenComma {
+		p.advance()
+		col, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		ref, ok := col.(*ColumnRefNode)
+		if !ok {
+			return nil, fmt.Errorf("ORDER BY requiere de un nombre de columna")
+		}
+		asc = true
+		if p.peek().Type == lexer.TokenAsc {
+			p.advance()
+			asc = true
+		} else if p.peek().Type == lexer.TokenDesc {
+			p.advance()
+			asc = false
+		}
+		items = append(items, OrderByItem{Column: ref.Name, Asc: asc})
+	}
+	return items, nil
 }
 
 func (p *Parser) parseOrExpr() (Node, error) {
