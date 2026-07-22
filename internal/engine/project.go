@@ -38,16 +38,23 @@ func (p *ProjectOperator) Next() (catalog.Row, error) {
 
 	result := make(catalog.Row, len(p.columns))
 	for _, col := range p.columns {
-		val, err := EvalExpr(col, row)
-		if err != nil {
-			return nil, fmt.Errorf("error en proyección: %w", err)
-		}
-
 		var name string
-		if ref, ok := col.(*parser.ColumnRefNode); ok {
-			name = ref.Name
+		var val interface{}
+
+		if agg, ok := col.(*parser.AggregateNode); ok {
+			name = agg.Func + "(" + agg.Column + ")"
+			val = row[name]
 		} else {
-			name = fmt.Sprintf("%v", col)
+			var err error
+			val, err = EvalExpr(col, row)
+			if err != nil {
+				return nil, fmt.Errorf("error en proyección: %w", err)
+			}
+			if ref, ok := col.(*parser.ColumnRefNode); ok {
+				name = ref.Name
+			} else {
+				name = fmt.Sprintf("%v", col)
+			}
 		}
 		result[name] = val
 	}
