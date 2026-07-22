@@ -19,9 +19,11 @@ type Node interface {
 }
 
 type SelectNode struct {
-	Columns []Node   // columnas a mostrar (* o lista)
-	Table   string   // nombre de la tabla
-	Where   Node     // condición WHERE (nil si no hay)
+	Columns []Node        // columnas a mostrar (* o lista)
+	Table   string        // nombre de la tabla
+	Where   Node          // condición WHERE (nil si no hay)
+	OrderBy []OrderByItem // ordenamiento (nil si en caso no hay ORDERBY)
+	Limit   *int          //limite de filas (nil en aso de que no haya limite)
 }
 
 func (n *SelectNode) Type() NodeType { return NodeSelect }
@@ -69,3 +71,8 @@ type ComparisonNode struct {
 }
 
 func (n *ComparisonNode) Type() NodeType { return NodeComparison }
+
+type OrderByItem struct {
+	Column string
+	Asc    bool
+}
