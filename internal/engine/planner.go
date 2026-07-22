@@ -21,5 +21,12 @@ func BuildPlan(node *parser.SelectNode, cat *catalog.Catalog) (Operator, error) 
 
 	op = NewProjectOperator(op, node.Columns, table.Schema)
 
+	if len(node.OrderBy) > 0 {
+		op = NewOrderOperator(op, node.OrderBy)
+	}
+
+	if node.Limit != nil {
+		op = NewLimitOperator(op, *node.Limit)
+	}
 	return op, nil
 }
