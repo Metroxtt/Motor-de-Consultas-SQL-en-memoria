@@ -12,6 +12,7 @@ const (
 	NodeNullLit
 	NodeBinaryOp
 	NodeComparison
+	NodeAggregate
 )
 
 type Node interface {
@@ -19,9 +20,10 @@ type Node interface {
 }
 
 type SelectNode struct {
-	Columns []Node   // columnas a mostrar (* o lista)
-	Table   string   // nombre de la tabla
-	Where   Node     // condición WHERE (nil si no hay)
+	Columns []Node // columnas a mostrar (* o lista)
+	Table   string // nombre de la tabla
+	Where   Node   // condición WHERE (nil si no hay)
+	GroupBy string // columna para GROUP BY (vacío si no hay)
 }
 
 func (n *SelectNode) Type() NodeType { return NodeSelect }
@@ -69,3 +71,10 @@ type ComparisonNode struct {
 }
 
 func (n *ComparisonNode) Type() NodeType { return NodeComparison }
+
+type AggregateNode struct {
+	Func   string // COUNT, SUM, AVG, MIN, MAX
+	Column string // nombre de la columna o "*" para COUNT(*)
+}
+
+func (n *AggregateNode) Type() NodeType { return NodeAggregate }
