@@ -114,6 +114,8 @@ func resolveHeaders(node *parser.SelectNode, table *catalog.Table) []string {
 	for i, col := range node.Columns {
 		if ref, ok := col.(*parser.ColumnRefNode); ok {
 			headers[i] = ref.Name
+		} else if agg, ok := col.(*parser.AggregateNode); ok {
+			headers[i] = agg.Func + "(" + agg.Column + ")"
 		} else {
 			headers[i] = fmt.Sprintf("col_%d", i)
 		}
