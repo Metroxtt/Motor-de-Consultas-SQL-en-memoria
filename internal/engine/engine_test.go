@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -279,5 +280,282 @@ func TestEvalANDOR(t *testing.T) {
 				t.Errorf("resultados = %d, want %d", count, tt.expect)
 			}
 		})
+	}
+}
+
+func TestCountStar(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT COUNT(*) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+	if row == nil {
+		t.Fatal("Next() retornó nil")
+	}
+
+	count, ok := row["COUNT(*)"].(int64)
+	if !ok {
+		t.Fatalf("COUNT(*) es %T, want int64", row["COUNT(*)"])
+	}
+	if count != 5 {
+		t.Errorf("COUNT(*) = %d, want 5", count)
+	}
+}
+
+func TestSumSalary(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT SUM(salary) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+
+	sum, ok := row["SUM(salary)"].(int64)
+	if !ok {
+		t.Fatalf("SUM(salary) es %T, want int64", row["SUM(salary)"])
+	}
+	// 50000 + 42000 + 61000 + 48000 + 72000 = 273000
+	if sum != 273000 {
+		t.Errorf("SUM(salary) = %d, want 273000", sum)
+	}
+}
+
+func TestAvgSalary(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT AVG(salary) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+
+	avg, ok := row["AVG(salary)"].(int64)
+	if !ok {
+		t.Fatalf("AVG(salary) es %T, want int64", row["AVG(salary)"])
+	}
+	// 273000 / 5 = 54600
+	if avg != 54600 {
+		t.Errorf("AVG(salary) = %d, want 54600", avg)
+	}
+}
+
+func TestMinMaxSalary(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT MIN(salary), MAX(salary) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+
+	min, ok := row["MIN(salary)"].(int64)
+	if !ok {
+		t.Fatalf("MIN(salary) es %T, want int64", row["MIN(salary)"])
+	}
+	if min != 42000 {
+		t.Errorf("MIN(salary) = %d, want 42000", min)
+	}
+
+	max, ok := row["MAX(salary)"].(int64)
+	if !ok {
+		t.Fatalf("MAX(salary) es %T, want int64", row["MAX(salary)"])
+	}
+	if max != 72000 {
+		t.Errorf("MAX(salary) = %d, want 72000", max)
+	}
+}
+
+func TestGroupByActive(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT active, COUNT(*) FROM employees GROUP BY active")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	groups := make(map[string]int64)
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		key := fmt.Sprintf("%v", row["active"])
+		count := row["COUNT(*)"].(int64)
+		groups[key] = count
+	}
+
+	// true: Alice, Bob, Diana (3)
+	// false: Charlie, Eve (2)
+	if groups["true"] != 3 {
+		t.Errorf("GROUP BY active, COUNT(*) para true = %d, want 3", groups["true"])
+	}
+	if groups["false"] != 2 {
+		t.Errorf("GROUP BY active, COUNT(*) para false = %d, want 2", groups["false"])
+	}
+}
+
+func TestGroupByWithAvg(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT active, AVG(salary) FROM employees GROUP BY active")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	groups := make(map[string]int64)
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		key := fmt.Sprintf("%v", row["active"])
+		avg := row["AVG(salary)"].(int64)
+		groups[key] = avg
+	}
+
+	// true: (50000 + 42000 + 48000) / 3 = 46666
+	// false: (61000 + 72000) / 2 = 66500
+	if groups["true"] != 46666 {
+		t.Errorf("AVG(salary) para active=true = %d, want 46666", groups["true"])
+	}
+	if groups["false"] != 66500 {
+		t.Errorf("AVG(salary) para active=false = %d, want 66500", groups["false"])
+	}
+}
+
+func TestCountWithWhere(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT COUNT(*) FROM employees WHERE salary > 50000")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+
+	count := row["COUNT(*)"].(int64)
+	// Charlie (61000) y Eve (72000)
+	if count != 2 {
+		t.Errorf("COUNT(*) con WHERE = %d, want 2", count)
+	}
+}
+
+func TestMultipleAggregates(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT COUNT(*), SUM(salary), AVG(salary) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	row, err := plan.Next()
+	if err != nil {
+		t.Fatalf("Next() error = %v", err)
+	}
+
+	count := row["COUNT(*)"].(int64)
+	sum := row["SUM(salary)"].(int64)
+	avg := row["AVG(salary)"].(int64)
+
+	if count != 5 {
+		t.Errorf("COUNT(*) = %d, want 5", count)
+	}
+	if sum != 273000 {
+		t.Errorf("SUM(salary) = %d, want 273000", sum)
+	}
+	if avg != 54600 {
+		t.Errorf("AVG(salary) = %d, want 54600", avg)
 	}
 }
