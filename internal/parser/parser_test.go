@@ -220,3 +220,100 @@ func TestParseNumberLiterals(t *testing.T) {
 		t.Errorf("Value = %q, want %q", num.Value, "3.14")
 	}
 }
+
+func TestParseOrderBy(t *testing.T) {
+	node, err := Parse("SELECT * FROM t ORDER BY name ASC")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.OrderBy) != 1 {
+		t.Fatalf("len(OrderBy) = %d, want 1", len(node.OrderBy))
+	}
+	if node.OrderBy[0].Column != "name" {
+		t.Errorf("OrderBy[0].Column = %q, want %q", node.OrderBy[0].Column, "name")
+	}
+	if !node.OrderBy[0].Asc {
+		t.Error("OrderBy[0].Asc = false, want true (ASC)")
+	}
+}
+func TestParseOrderByDesc(t *testing.T) {
+	node, err := Parse("SELECT * FROM t ORDER BY salary DESC")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.OrderBy) != 1 {
+		t.Fatalf("len(OrderBy) = %d, want 1", len(node.OrderBy))
+	}
+	if node.OrderBy[0].Column != "salary" {
+		t.Errorf("OrderBy[0].Column = %q, want %q", node.OrderBy[0].Column, "salary")
+	}
+	if node.OrderBy[0].Asc {
+		t.Error("OrderBy[0].Asc = true, want false (DESC)")
+	}
+}
+func TestParseOrderByMultiple(t *testing.T) {
+	node, err := Parse("SELECT * FROM t ORDER BY age ASC, name DESC")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.OrderBy) != 2 {
+		t.Fatalf("len(OrderBy) = %d, want 2", len(node.OrderBy))
+	}
+	if node.OrderBy[0].Column != "age" || !node.OrderBy[0].Asc {
+		t.Errorf("OrderBy[0] = {Column:%q, Asc:%v}, want {age, true}", node.OrderBy[0].Column, node.OrderBy[0].Asc)
+	}
+	if node.OrderBy[1].Column != "name" || node.OrderBy[1].Asc {
+		t.Errorf("OrderBy[1] = {Column:%q, Asc:%v}, want {name, false}", node.OrderBy[1].Column, node.OrderBy[1].Asc)
+	}
+}
+
+func TestParseLimit(t *testing.T) {
+	node, err := Parse("SELECT * FROM t LIMIT 5")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if node.Limit == nil {
+		t.Fatal("Limit = nil, want 5")
+	}
+	if *node.Limit != 5 {
+		t.Errorf("*Limit = %d, want 5", *node.Limit)
+	}
+}
+
+func TestParseOrderByAndLimit(t *testing.T) {
+	node, err := Parse("SELECT * FROM t WHERE age > 20 ORDER BY name DESC LIMIT 3")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if node.Where == nil {
+		t.Fatal("Where = nil, want comparación")
+	}
+	if len(node.OrderBy) != 1 {
+		t.Fatalf("len(OrderBy) = %d, want 1", len(node.OrderBy))
+	}
+	if node.OrderBy[0].Column != "name" || node.OrderBy[0].Asc {
+		t.Errorf("OrderBy[0] = {Column:%q, Asc:%v}, want {name, false}", node.OrderBy[0].Column, node.OrderBy[0].Asc)
+	}
+	if node.Limit == nil || *node.Limit != 3 {
+		t.Errorf("Limit = %v, want 3", node.Limit)
+	}
+}
+
+func TestParseLimitSinOrderBy(t *testing.T) {
+	node, err := Parse("SELECT * FROM t LIMIT 2")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if node.OrderBy != nil {
+		t.Errorf("OrderBy = %v, want nil", node.OrderBy)
+	}
+	if node.Limit == nil || *node.Limit != 2 {
+		t.Errorf("Limit = %v, want 2", node.Limit)
+	}
+}

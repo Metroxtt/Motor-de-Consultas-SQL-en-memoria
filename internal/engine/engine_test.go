@@ -281,3 +281,204 @@ func TestEvalANDOR(t *testing.T) {
 		})
 	}
 }
+func TestOrderOperator(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees ORDER BY salary DESC")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	var salaries []int64
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		salaries = append(salaries, row["salary"].(int64))
+	}
+
+	if len(salaries) != 5 {
+		t.Fatalf("resultados = %d, want 5", len(salaries))
+	}
+	for i := 0; i < len(salaries)-1; i++ {
+		if salaries[i] < salaries[i+1] {
+			t.Errorf("salary[%d]=%d >= salary[%d]=%d, orden DESC incorrecto", i, salaries[i], i+1, salaries[i+1])
+		}
+	}
+}
+
+func TestOrderOperatorASC(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees ORDER BY id ASC")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	var ids []int64
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		ids = append(ids, row["id"].(int64))
+	}
+
+	if len(ids) != 5 {
+		t.Fatalf("resultados = %d, want 5", len(ids))
+	}
+	for i := 0; i < len(ids)-1; i++ {
+		if ids[i] > ids[i+1] {
+			t.Errorf("id[%d]=%d > id[%d]=%d, orden ASC incorrecto", i, ids[i], i+1, ids[i+1])
+		}
+	}
+}
+
+func TestLimitOperator(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees LIMIT 2")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	count := 0
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		count++
+	}
+
+	if count != 2 {
+		t.Errorf("resultados = %d, want 2", count)
+	}
+}
+
+func TestOrderYLimit(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees ORDER BY salary DESC LIMIT 3")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	var salaries []int64
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		salaries = append(salaries, row["salary"].(int64))
+	}
+
+	if len(salaries) != 3 {
+		t.Fatalf("resultados = %d, want 3", len(salaries))
+	}
+	for i := 0; i < len(salaries)-1; i++ {
+		if salaries[i] < salaries[i+1] {
+			t.Errorf("salary[%d]=%d < salary[%d]=%d, orden DESC incorrecto", i, salaries[i], i+1, salaries[i+1])
+		}
+	}
+}
+
+func TestLimitMayorQueFilas(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees LIMIT 100")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	count := 0
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		count++
+	}
+
+	if count != 5 {
+		t.Errorf("resultados = %d, want 5 (las 5 filas existentes)", count)
+	}
+}
+
+func TestOrderByColumnaNoExiste(t *testing.T) {
+	table := loadTestTable(t)
+	cat := catalog.NewCatalog()
+	cat.AddTable(table)
+
+	node, err := parser.Parse("SELECT * FROM employees ORDER BY fake_col")
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	_, err = plan.Next()
+	if err == nil {
+		t.Error("Next() esperaba error por columna inexistente, obtuvo nil")
+	}
+}
