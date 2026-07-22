@@ -220,3 +220,164 @@ func TestParseNumberLiterals(t *testing.T) {
 		t.Errorf("Value = %q, want %q", num.Value, "3.14")
 	}
 }
+
+func TestParseCountStar(t *testing.T) {
+	node, err := Parse("SELECT COUNT(*) FROM employees")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.Columns) != 1 {
+		t.Fatalf("len(Columns) = %d, want 1", len(node.Columns))
+	}
+
+	agg, ok := node.Columns[0].(*AggregateNode)
+	if !ok {
+		t.Fatalf("Columns[0] is %T, want *AggregateNode", node.Columns[0])
+	}
+
+	if agg.Func != "COUNT" {
+		t.Errorf("Func = %q, want %q", agg.Func, "COUNT")
+	}
+	if agg.Column != "*" {
+		t.Errorf("Column = %q, want %q", agg.Column, "*")
+	}
+}
+
+func TestParseAggregateFunctions(t *testing.T) {
+	tests := []struct {
+		query    string
+		wantFunc string
+		wantCol  string
+	}{
+		{"SELECT COUNT(*) FROM t", "COUNT", "*"},
+		{"SELECT COUNT(id) FROM t", "COUNT", "id"},
+		{"SELECT SUM(salary) FROM t", "SUM", "salary"},
+		{"SELECT AVG(salary) FROM t", "AVG", "salary"},
+		{"SELECT MIN(salary) FROM t", "MIN", "salary"},
+		{"SELECT MAX(salary) FROM t", "MAX", "salary"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.wantFunc, func(t *testing.T) {
+			node, err := Parse(tt.query)
+			if err != nil {
+				t.Fatalf("Parse(%q) error = %v", tt.query, err)
+			}
+
+			if len(node.Columns) != 1 {
+				t.Fatalf("len(Columns) = %d, want 1", len(node.Columns))
+			}
+
+			agg, ok := node.Columns[0].(*AggregateNode)
+			if !ok {
+				t.Fatalf("Columns[0] is %T, want *AggregateNode", node.Columns[0])
+			}
+
+			if agg.Func != tt.wantFunc {
+				t.Errorf("Func = %q, want %q", agg.Func, tt.wantFunc)
+			}
+			if agg.Column != tt.wantCol {
+				t.Errorf("Column = %q, want %q", agg.Column, tt.wantCol)
+			}
+		})
+	}
+}
+
+func TestParseMultipleAggregates(t *testing.T) {
+	node, err := Parse("SELECT COUNT(*), SUM(salary), AVG(salary) FROM t")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.Columns) != 3 {
+		t.Fatalf("len(Columns) = %d, want 3", len(node.Columns))
+	}
+
+	expectedFuncs := []string{"COUNT", "SUM", "AVG"}
+	for i, col := range node.Columns {
+		agg, ok := col.(*AggregateNode)
+		if !ok {
+			t.Fatalf("Columns[%d] is %T, want *AggregateNode", i, col)
+		}
+		if agg.Func != expectedFuncs[i] {
+			t.Errorf("Columns[%d].Func = %q, want %q", i, agg.Func, expectedFuncs[i])
+		}
+	}
+}
+
+func TestParseGroupBy(t *testing.T) {
+	node, err := Parse("SELECT active, COUNT(*) FROM employees GROUP BY active")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if node.GroupBy != "active" {
+		t.Errorf("GroupBy = %q, want %q", node.GroupBy, "active")
+	}
+
+	if len(node.Columns) != 2 {
+		t.Fatalf("len(Columns) = %d, want 2", len(node.Columns))
+	}
+
+	if _, ok := node.Columns[0].(*ColumnRefNode); !ok {
+		t.Errorf("Columns[0] is %T, want *ColumnRefNode", node.Columns[0])
+	}
+	if _, ok := node.Columns[1].(*AggregateNode); !ok {
+		t.Errorf("Columns[1] is %T, want *AggregateNode", node.Columns[1])
+	}
+}
+
+func TestParseGroupByWithWhere(t *testing.T) {
+	node, err := Parse("SELECT active, COUNT(*) FROM employees WHERE salary > 50000 GROUP BY active")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if node.Where == nil {
+		t.Fatal("Where = nil, want comparación")
+	}
+
+	if node.GroupBy != "active" {
+		t.Errorf("GroupBy = %q, want %q", node.GroupBy, "active")
+	}
+}
+
+func TestParseGroupByErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"GROUP BY sin columna", "SELECT COUNT(*) FROM t GROUP BY"},
+		{"GROUP BY sin BY", "SELECT COUNT(*) FROM t GROUP"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.input)
+			if err == nil {
+				t.Errorf("Parse(%q) esperaba error, obtuvo nil", tt.input)
+			}
+		})
+	}
+}
+
+func TestParseAggregateErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"COUNT sin parentesis", "SELECT COUNT FROM t"},
+		{"COUNT sin columna", "SELECT COUNT() FROM t"},
+		{"COUNT sin cerrar", "SELECT COUNT(* FROM t"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.input)
+			if err == nil {
+				t.Errorf("Parse(%q) esperaba error, obtuvo nil", tt.input)
+			}
+		})
+	}
+}
