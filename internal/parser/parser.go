@@ -207,6 +207,9 @@ func (p *Parser) parsePrimary() (Node, error) {
 			p.advance()
 			return &NullLitNode{}, nil
 		}
+		if lower == "COUNT" || lower == "SUM" || lower == "AVG" || lower == "MIN" || lower == "MAX" {
+			return p.parseAggregate(lower)
+		}
 		p.advance()
 		return &ColumnRefNode{Name: tok.Literal}, nil
 
@@ -229,6 +232,32 @@ func (p *Parser) parsePrimary() (Node, error) {
 		return nil, fmt.Errorf("expresión inesperada %s en línea %d, columna %d",
 			tok.Type, tok.Line, tok.Column)
 	}
+}
+
+func (p *Parser) parseAggregate(funcName string) (Node, error) {
+	p.advance() // consumimos el nombre de la función (COUNT, SUM, etc.)
+
+	if _, err := p.expect(lexer.TokenLParen); err != nil {
+		return nil, fmt.Errorf("se esperaba ( después de %s", funcName)
+	}
+
+	tok := p.peek()
+	var col string
+	if tok.Type == lexer.TokenStar {
+		p.advance()
+		col = "*"
+	} else if tok.Type == lexer.TokenIdent {
+		col = tok.Literal
+		p.advance()
+	} else {
+		return nil, fmt.Errorf("se esperaba columna o * dentro de %s()", funcName)
+	}
+
+	if _, err := p.expect(lexer.TokenRParen); err != nil {
+		return nil, fmt.Errorf("se esperaba ) después de %s(%s", funcName, col)
+	}
+
+	return &AggregateNode{Func: funcName, Column: col}, nil
 }
 
 func Parse(input string) (*SelectNode, error) {
