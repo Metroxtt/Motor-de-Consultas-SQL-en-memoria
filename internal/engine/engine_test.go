@@ -281,3 +281,60 @@ func TestEvalANDOR(t *testing.T) {
 		})
 	}
 }
+
+const testOrdersCSV = `order_id,employee_id,amount,date
+1,1,250.00,2024-01-15
+2,3,180.50,2024-02-20
+3,1,320.00,2024-03-10
+4,2,95.75,2024-04-05
+5,4,410.00,2024-05-12`
+
+func TestInnerJoin(t *testing.T) {
+	empTable := loadTestTable(t) // employees
+	ordersTable, err := catalog.LoadCSV("orders", strings.NewReader(testOrdersCSV), nil)
+	if err != nil {
+		t.Fatalf("LoadCSV orders error = %v", err)
+	}
+
+	cat := catalog.NewCatalog()
+	cat.AddTable(empTable)
+	cat.AddTable(ordersTable)
+
+	query := "SELECT employees.name, orders.amount FROM employees INNER JOIN orders ON employees.id = orders.employee_id"
+	node, err := parser.Parse(query)
+	if err != nil {
+		t.Fatalf("Parse error = %v", err)
+	}
+
+	plan, err := BuildPlan(node, cat)
+	if err != nil {
+		t.Fatalf("BuildPlan error = %v", err)
+	}
+	defer plan.Close()
+
+	var results []catalog.Row
+	for {
+		row, err := plan.Next()
+		if err != nil {
+			t.Fatalf("Next() error = %v", err)
+		}
+		if row == nil {
+			break
+		}
+		results = append(results, row)
+	}
+
+	// 5 órdenes, todas hacen join (empleados 1, 3, 2, 4)
+	if len(results) != 5 {
+		t.Errorf("resultados join = %d, want 5", len(results))
+	}
+
+	for _, row := range results {
+		if _, ok := row["name"]; !ok {
+			t.Error("resultado join sin campo 'name'")
+		}
+		if _, ok := row["amount"]; !ok {
+			t.Error("resultado join sin campo 'amount'")
+		}
+	}
+}
