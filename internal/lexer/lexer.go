@@ -62,7 +62,7 @@ func (l *Lexer) readIdent() string {
 	start := l.pos - 1
 	for l.pos < len(l.input) {
 		ch := rune(l.input[l.pos])
-		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_' {
+		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_' || ch == '.' {
 			l.advance()
 		} else {
 			break

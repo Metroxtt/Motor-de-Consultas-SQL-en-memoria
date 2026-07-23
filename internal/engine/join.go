@@ -2,19 +2,28 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Metroxtt/Motor-de-Consultas-SQL-en-memoria/internal/catalog"
 	"github.com/Metroxtt/Motor-de-Consultas-SQL-en-memoria/internal/parser"
 )
 
-// joinRows fusiona dos filas en una nueva.
-func joinRows(left, right catalog.Row) catalog.Row {
+// joinRows fusiona dos filas en una nueva prefijando con el nombre de la tabla.
+func joinRows(leftName string, left catalog.Row, rightName string, right catalog.Row) catalog.Row {
 	result := make(catalog.Row, len(left)+len(right))
 	for k, v := range left {
-		result[k] = v
+		if !strings.Contains(k, ".") && leftName != "" {
+			result[leftName+"."+k] = v
+		} else {
+			result[k] = v
+		}
 	}
 	for k, v := range right {
-		result[k] = v
+		if !strings.Contains(k, ".") && rightName != "" {
+			result[rightName+"."+k] = v
+		} else {
+			result[k] = v
+		}
 	}
 	return result
 }
@@ -26,6 +35,8 @@ func joinRows(left, right catalog.Row) catalog.Row {
 type NestedLoopJoinOperator struct {
 	left        Operator
 	right       Operator
+	leftTable   string
+	rightTable  string
 	onCondition parser.Node
 
 	rightRows   []catalog.Row
@@ -34,10 +45,12 @@ type NestedLoopJoinOperator struct {
 	initialized bool
 }
 
-func NewNestedLoopJoinOperator(left, right Operator, onCondition parser.Node) *NestedLoopJoinOperator {
+func NewNestedLoopJoinOperator(left, right Operator, leftTable, rightTable string, onCondition parser.Node) *NestedLoopJoinOperator {
 	return &NestedLoopJoinOperator{
 		left:        left,
 		right:       right,
+		leftTable:   leftTable,
+		rightTable:  rightTable,
 		onCondition: onCondition,
 	}
 }
@@ -81,7 +94,7 @@ func (op *NestedLoopJoinOperator) Next() (catalog.Row, error) {
 			rRow := op.rightRows[op.rightIdx]
 			op.rightIdx++
 
-			merged := joinRows(op.leftRow, rRow)
+			merged := joinRows(op.leftTable, op.leftRow, op.rightTable, rRow)
 
 			// Evaluar ON condition
 			val, err := EvalExpr(op.onCondition, merged)
@@ -113,6 +126,8 @@ func (op *NestedLoopJoinOperator) Close() error {
 type HashJoinOperator struct {
 	left        Operator
 	right       Operator
+	leftTable   string
+	rightTable  string
 	onCondition parser.Node
 
 	leftColName  string
@@ -125,12 +140,22 @@ type HashJoinOperator struct {
 	initialized  bool
 }
 
-func NewHashJoinOperator(left, right Operator, onCondition parser.Node) *HashJoinOperator {
+func NewHashJoinOperator(left, right Operator, leftTable, rightTable string, onCondition parser.Node) *HashJoinOperator {
 	return &HashJoinOperator{
 		left:        left,
 		right:       right,
+		leftTable:   leftTable,
+		rightTable:  rightTable,
 		onCondition: onCondition,
 	}
+}
+
+func getColNameWithoutPrefix(colName string) string {
+	parts := strings.Split(colName, ".")
+	if len(parts) > 1 {
+		return parts[len(parts)-1]
+	}
+	return colName
 }
 
 func (op *HashJoinOperator) extractColumns() error {
@@ -146,8 +171,10 @@ func (op *HashJoinOperator) extractColumns() error {
 		return fmt.Errorf("HashJoin requiere referencias a columnas en ambos lados del ON")
 	}
 
-	op.leftColName = lCol.Name
-	op.rightColName = rCol.Name
+	// Guardamos los nombres originales para buscar en la fila ya pre-fixada
+	// o buscar en la fila del ScanOperator que no tiene prefijos
+	op.leftColName = getColNameWithoutPrefix(lCol.Name)
+	op.rightColName = getColNameWithoutPrefix(rCol.Name)
 
 	return nil
 }
@@ -199,7 +226,7 @@ func (op *HashJoinOperator) Next() (catalog.Row, error) {
 		if op.matchIdx < len(op.rightMatches) {
 			rRow := op.rightMatches[op.matchIdx]
 			op.matchIdx++
-			return joinRows(op.leftRow, rRow), nil
+			return joinRows(op.leftTable, op.leftRow, op.rightTable, rRow), nil
 		}
 
 		lRow, err := op.left.Next()

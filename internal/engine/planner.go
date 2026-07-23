@@ -24,8 +24,8 @@ func BuildPlan(node *parser.SelectNode, cat *catalog.Catalog) (Operator, error) 
 			rOp := NewScanOperator(rTable)
 			
 			// Por defecto usamos HashJoin ya que es más rápido O(N+M).
-			// Para usar NestedLoopJoin sería: op = NewNestedLoopJoinOperator(op, rOp, join.OnCondition)
-			op = NewHashJoinOperator(op, rOp, join.OnCondition)
+			// Para usar NestedLoopJoin sería: op = NewNestedLoopJoinOperator(op, rOp, node.Table, join.RightTable, join.OnCondition)
+			op = NewHashJoinOperator(op, rOp, node.Table, join.RightTable, join.OnCondition)
 		}
 	}
 
