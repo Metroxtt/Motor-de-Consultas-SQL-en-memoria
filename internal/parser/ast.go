@@ -12,16 +12,32 @@ const (
 	NodeNullLit
 	NodeBinaryOp
 	NodeComparison
+	NodeJoin
 )
 
 type Node interface {
 	Type() NodeType
 }
 
+type JoinType int
+
+const (
+	InnerJoin JoinType = iota
+)
+
+type JoinNode struct {
+	JoinType    JoinType
+	RightTable  string
+	OnCondition Node
+}
+
+func (n *JoinNode) Type() NodeType { return NodeJoin }
+
 type SelectNode struct {
-	Columns []Node   // columnas a mostrar (* o lista)
-	Table   string   // nombre de la tabla
-	Where   Node     // condición WHERE (nil si no hay)
+	Columns []Node      // columnas a mostrar (* o lista)
+	Table   string      // nombre de la tabla
+	Joins   []*JoinNode // lista de JOINs
+	Where   Node        // condición WHERE (nil si no hay)
 }
 
 func (n *SelectNode) Type() NodeType { return NodeSelect }
