@@ -16,6 +16,9 @@ const (
 	TokenWhere  // WHERE
 	TokenAnd    // AND
 	TokenOr     // OR
+	TokenInner  // INNER
+	TokenJoin   // JOIN
+	TokenOn     // ON
 
 	// Operadores
 	TokenEq    // =
@@ -37,6 +40,7 @@ var tokenNames = map[TokenType]string{
 	TokenIdent: "IDENT", TokenNumber: "NUMBER", TokenString: "STRING",
 	TokenSelect: "SELECT", TokenFrom: "FROM", TokenWhere: "WHERE",
 	TokenAnd: "AND", TokenOr: "OR",
+	TokenInner: "INNER", TokenJoin: "JOIN", TokenOn: "ON",
 	TokenEq: "=", TokenNeq: "<>", TokenLt: "<", TokenGt: ">",
 	TokenLe: "<=", TokenGe: ">=", TokenStar: "*",
 	TokenLParen: "(", TokenRParen: ")", TokenComma: ",",

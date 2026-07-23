@@ -73,6 +73,35 @@ func (p *Parser) Parse() (*SelectNode, error) {
 	}
 	node.Table = tableTok.Literal
 
+	for p.peek().Type == lexer.TokenInner {
+		p.advance() // Consume INNER
+		if _, err := p.expect(lexer.TokenJoin); err != nil {
+			return nil, err
+		}
+		
+		rightTableTok, err := p.expect(lexer.TokenIdent)
+		if err != nil {
+			return nil, err
+		}
+		
+		if _, err := p.expect(lexer.TokenOn); err != nil {
+			return nil, err
+		}
+		
+		onExpr, err := p.parseOrExpr()
+		if err != nil {
+			return nil, err
+		}
+		
+		joinNode := &JoinNode{
+			JoinType:    InnerJoin,
+			RightTable:  rightTableTok.Literal,
+			OnCondition: onExpr,
+		}
+		
+		node.Joins = append(node.Joins, joinNode)
+	}
+
 	if p.peek().Type == lexer.TokenWhere {
 		p.advance()
 		expr, err := p.parseOrExpr()

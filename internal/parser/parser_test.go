@@ -220,3 +220,32 @@ func TestParseNumberLiterals(t *testing.T) {
 		t.Errorf("Value = %q, want %q", num.Value, "3.14")
 	}
 }
+
+func TestParseInnerJoin(t *testing.T) {
+	node, err := Parse("SELECT * FROM employees INNER JOIN orders ON employees.id = orders.employee_id")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if len(node.Joins) != 1 {
+		t.Fatalf("len(Joins) = %d, want 1", len(node.Joins))
+	}
+
+	join := node.Joins[0]
+	if join.JoinType != InnerJoin {
+		t.Errorf("JoinType = %v, want InnerJoin", join.JoinType)
+	}
+
+	if join.RightTable != "orders" {
+		t.Errorf("RightTable = %q, want %q", join.RightTable, "orders")
+	}
+
+	comp, ok := join.OnCondition.(*ComparisonNode)
+	if !ok {
+		t.Fatalf("OnCondition is %T, want *ComparisonNode", join.OnCondition)
+	}
+
+	if comp.Op != "=" {
+		t.Errorf("Op = %q, want %q", comp.Op, "=")
+	}
+}
